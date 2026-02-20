@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: lol-mysql-secret
+type: Opaque
+stringData:
+  MYSQL_ROOT_PASSWORD: rootpassword
+  MYSQL_PASSWORD: lolpassword
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lol-mysql-config
+data:
+  MYSQL_DATABASE: LOLDB
+  MYSQL_USER: loluser
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lol-mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lol-mysql
+  template:
+    metadata:
+      labels:
+        app: lol-mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.4
+          ports:
+            - containerPort: 3306
+          envFrom:
+            - configMapRef:
+                name: lol-mysql-config
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: lol-mysql-secret
+                  key: MYSQL_ROOT_PASSWORD
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: lol-mysql-secret
+                  key: MYSQL_PASSWORD
+          volumeMounts:
+            - mountPath: /var/lib/mysql
+              name: mysql-data
+      volumes:
+        - name: mysql-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lol-mysql
+spec:
+  selector:
+    app: lol-mysql
+  ports:
+    - port: 3306
+      targetPort: 3306
